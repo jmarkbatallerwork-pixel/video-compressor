@@ -1,48 +1,91 @@
-<input type="file" id="upload" />
-<button id="id="btn"">Compress to 25MB</button>
-<a id="download" style="display:none">Download</a>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Compressor</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
+        #status { margin-top: 10px; color: #555; }
+        #download { margin-top: 20px; font-weight: bold; color: green; }
+    </style>
+</head>
+<body>
 
-<script type="module">
-  // Added the toBlobURL import here
-  import { FFmpeg } from "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/esm/index.js";
-  import { fetchFile, toBlobURL } from "https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js";
+    <h2>Video Compressor (To 25MB)</h2>
+    
+    <input type="file" id="upload" accept="video/*" />
+    <button id="btn">Compress to 25MB</button>
+    
+    <div id="status"></div>
+    <a id="download" style="display:none">Download Compressed Video</a>
 
-  const ffmpeg = new FFmpeg();
+    <script type="module">
+        // Import FFmpeg and the Utility for Blob loading
+        import { FFmpeg } from "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/esm/index.js";
+        import { fetchFile, toBlobURL } from "https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js";
 
-  document.getElementById("btn").onclick = compress;
+        const ffmpeg = new FFmpeg();
+        const btn = document.getElementById("btn");
+        const status = document.getElementById("status");
+        const downloadLink = document.getElementById("download");
 
-  async function compress() {
-    const file = document.getElementById('upload').files[0];
-    if (!file) {
-      alert("Please select a file first!");
-      return;
-    }
+        btn.onclick = compress;
 
-    const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/esm';
+        async function compress() {
+            const file = document.getElementById('upload').files[0];
+            if (!file) {
+                alert("Please select a video file first.");
+                return;
+            }
 
-    // This part fixes the SecurityError by fetching the scripts as Blobs
-    await ffmpeg.load({
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-      workerURL: await toBlobURL(`${baseURL}/worker.js`, 'text/javascript'),
-    });
+            status.innerText = "Loading FFmpeg core...";
+            btn.disabled = true;
 
-    await ffmpeg.writeFile('input.mp4', await fetchFile(file));
+            try {
+                // Pointing to the local files you moved to public/ffmpeg
+                const baseURL = './public/ffmpeg';
+                
+                await ffmpeg.load({
+                    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+                    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+                    workerURL: await toBlobURL(`${baseURL}/worker.js`, 'text/javascript'),
+                });
 
-    // Basic compression command
-    await ffmpeg.exec([
-      '-i', 'input.mp4',
-      '-b:v', '1M',
-      'output.mp4'
-    ]);
+                status.innerText = "Writing file to memory...";
+                await ffmpeg.writeFile('input.mp4', await fetchFile(file));
 
-    const data = await ffmpeg.readFile('output.mp4');
-    const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
+                status.innerText = "Compressing... (This may take a minute)";
+                
+                // This command attempts to squeeze the video. 
+                // '-b:v 2M' is a safe starting point for 25MB on a 1-2 minute video.
+                await ffmpeg.exec([
+                    '-i', 'input.mp4',
+                    '-b:v', '2M', 
+                    '-maxrate', '2M', 
+                    '-bufsize', '4M',
+                    'output.mp4'
+                ]);
 
-    const link = document.getElementById('download');
-    link.href = url;
-    link.download = 'compressed.mp4';
-    link.innerText = 'Click here to download';
-    link.style.display = 'block';
-  }
-</script>
+                status.innerText = "Compression complete!";
+                const data = await ffmpeg.readFile('output.mp4');
+
+                const url = URL.createObjectURL(
+                    new Blob([data.buffer], { type: 'video/mp4' })
+                );
+
+                downloadLink.href = url;
+                downloadLink.download = 'compressed_25mb.mp4';
+                downloadLink.style.display = 'block';
+                downloadLink.innerText = 'Download ' + (data.length / (1024 * 1024)).toFixed(2) + ' MB Video';
+
+            } catch (error) {
+                console.error(error);
+                status.innerText = "Error: " + error.message;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
