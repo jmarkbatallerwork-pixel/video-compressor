@@ -51,15 +51,16 @@
         status.innerText = "Loading FFmpeg...";
 
         try {
-            // Updated baseURL to point to your public/ffmpeg folder
-const baseURL = window.location.origin + '/public/ffmpeg';
-
-await ffmpeg.load({
-    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-    // THIS IS THE FIX: change workerURL to classWorkerURL
-    classWorkerURL: await toBlobURL(`${baseURL}/worker.js`, 'text/javascript'),
-});
+            // FIX: Bypass Vercel folder routing completely by fetching from the official CDN
+            // toBlobURL converts these into secure, local memory files to pass CORS
+            const CORE_URL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+            const FFMPEG_URL = 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/esm';
+            
+            await ffmpeg.load({
+                coreURL: await toBlobURL(`${CORE_URL}/ffmpeg-core.js`, 'text/javascript'),
+                wasmURL: await toBlobURL(`${CORE_URL}/ffmpeg-core.wasm`, 'application/wasm'),
+                workerURL: await toBlobURL(`${FFMPEG_URL}/worker.js`, 'text/javascript'),
+            });
 
             status.innerText = "Processing video...";
             await ffmpeg.writeFile('input.mp4', await fetchFile(file));
