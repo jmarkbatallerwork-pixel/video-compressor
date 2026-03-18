@@ -1,4 +1,7 @@
 {
+  "version": 2,
+  "public": true,
+  "cleanUrls": true,
   "headers": [
     {
       "source": "/(.*)",
@@ -7,5 +10,8 @@
         { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" }
       ]
     }
+  ],
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/$1" }
   ]
 }
