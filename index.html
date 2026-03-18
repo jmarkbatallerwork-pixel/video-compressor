@@ -3,89 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Compressor</title>
+    <title>MPMG Video Compressor</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
-        #status { margin-top: 10px; color: #555; }
-        #download { margin-top: 20px; font-weight: bold; color: green; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background-color: #f4f4f9; color: #333; }
+        .container { max-width: 500px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #2c3e50; margin-bottom: 25px; }
+        input[type="file"] { width: 100%; margin-bottom: 20px; }
+        button { width: 100%; padding: 12px; background-color: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; transition: background 0.3s; }
+        button:hover { background-color: #2980b9; }
+        button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        #status { margin-top: 20px; text-align: center; font-weight: 500; color: #7f8c8d; }
+        #download { display: none; margin-top: 20px; text-align: center; padding: 12px; background-color: #27ae60; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; }
+        #download:hover { background-color: #219150; }
     </style>
 </head>
 <body>
 
-    <h2>Video Compressor (To 25MB)</h2>
-    
+<div class="container">
+    <h2>Video Compressor</h2>
     <input type="file" id="upload" accept="video/*" />
     <button id="btn">Compress to 25MB</button>
     
-    <div id="status"></div>
-    <a id="download" style="display:none">Download Compressed Video</a>
+    <div id="status">Ready</div>
+    <a id="download">Download Compressed Video</a>
+</div>
 
-    <script type="module">
-        // Import FFmpeg and the Utility for Blob loading
-        import { FFmpeg } from "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/esm/index.js";
-        import { fetchFile, toBlobURL } from "https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js";
+<script type="module">
+    import { FFmpeg } from "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/esm/index.js";
+    import { fetchFile, toBlobURL } from "https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js";
 
-        const ffmpeg = new FFmpeg();
-        const btn = document.getElementById("btn");
-        const status = document.getElementById("status");
-        const downloadLink = document.getElementById("download");
+    const ffmpeg = new FFmpeg();
+    const btn = document.getElementById("btn");
+    const status = document.getElementById("status");
+    const downloadLink = document.getElementById("download");
 
-        btn.onclick = compress;
+    btn.onclick = compress;
 
-        async function compress() {
-            const file = document.getElementById('upload').files[0];
-            if (!file) {
-                alert("Please select a video file first.");
-                return;
-            }
-
-            status.innerText = "Loading FFmpeg core...";
-            btn.disabled = true;
-
-            try {
-                // Pointing to the local files you moved to public/ffmpeg
-                const baseURL = './public/ffmpeg';
-                
-                await ffmpeg.load({
-                    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-                    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-                    workerURL: await toBlobURL(`${baseURL}/worker.js`, 'text/javascript'),
-                });
-
-                status.innerText = "Writing file to memory...";
-                await ffmpeg.writeFile('input.mp4', await fetchFile(file));
-
-                status.innerText = "Compressing... (This may take a minute)";
-                
-                // This command attempts to squeeze the video. 
-                // '-b:v 2M' is a safe starting point for 25MB on a 1-2 minute video.
-                await ffmpeg.exec([
-                    '-i', 'input.mp4',
-                    '-b:v', '2M', 
-                    '-maxrate', '2M', 
-                    '-bufsize', '4M',
-                    'output.mp4'
-                ]);
-
-                status.innerText = "Compression complete!";
-                const data = await ffmpeg.readFile('output.mp4');
-
-                const url = URL.createObjectURL(
-                    new Blob([data.buffer], { type: 'video/mp4' })
-                );
-
-                downloadLink.href = url;
-                downloadLink.download = 'compressed_25mb.mp4';
-                downloadLink.style.display = 'block';
-                downloadLink.innerText = 'Download ' + (data.length / (1024 * 1024)).toFixed(2) + ' MB Video';
-
-            } catch (error) {
-                console.error(error);
-                status.innerText = "Error: " + error.message;
-            } finally {
-                btn.disabled = false;
-            }
+    async function compress() {
+        const file = document.getElementById('upload').files[0];
+        if (!file) {
+            alert("Please select a video file first.");
+            return;
         }
-    </script>
+
+        btn.disabled = true;
+        downloadLink.style.display = 'none';
+        status.innerText = "Loading FFmpeg...";
+
+        try {
+            // Updated baseURL to point to your public/ffmpeg folder
+            const baseURL = './public/ffmpeg';
+            
+            await ffmpeg.load({
+                coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+                wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+                workerURL: await toBlobURL(`${baseURL}/worker.js`, 'text/javascript'),
+            });
+
+            status.innerText = "Processing video...";
+            await ffmpeg.writeFile('input.mp4', await fetchFile(file));
+
+            status.innerText = "Compressing... (Stay on this page)";
+            
+            // This command aims for high compression to hit the ~25MB mark
+            await ffmpeg.exec([
+                '-i', 'input.mp4',
+                '-vcodec', 'libx264',
+                '-crf', '28',        // Lower quality but smaller file
+                '-b:v', '1.5M',      // Target bitrate
+                '-maxrate', '2M',
+                '-bufsize', '4M',
+                'output.mp4'
+            ]);
+
+            status.innerText = "Finished!";
+            const data = await ffmpeg.readFile('output.mp4');
+
+            const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
+            
+            const fileSizeMB = (data.length / (1024 * 1024)).toFixed(2);
+            downloadLink.href = url;
+            downloadLink.download = 'MPMG_Compressed.mp4';
+            downloadLink.innerText = `Download (${fileSizeMB} MB)`;
+            downloadLink.style.display = 'block';
+
+        } catch (error) {
+            console.error(error);
+            status.innerText = "Error: " + error.message;
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    // Optional: Log progress to console
+    ffmpeg.on('log', ({ message }) => {
+        console.log(message);
+    });
+</script>
+
 </body>
 </html>
