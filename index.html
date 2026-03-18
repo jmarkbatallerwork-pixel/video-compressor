@@ -1,68 +1,68 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MPMG Video Compressor</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MPMG Video Compressor</title>
 
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            padding: 40px;
-            background-color: #f4f4f9;
-            color: #333;
-        }
-        .container {
-            max-width: 500px;
-            margin: auto;
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-        h2 {
-            text-align: center;
-            color: #2c3e50;
-            margin-bottom: 25px;
-        }
-        input[type="file"] {
-            width: 100%;
-            margin-bottom: 20px;
-        }
-        button {
-            width: 100%;
-            padding: 12px;
-            background-color: #3498db;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        button:hover { background-color: #2980b9; }
-        button:disabled {
-            background-color: #bdc3c7;
-            cursor: not-allowed;
-        }
-        #status {
-            margin-top: 20px;
-            text-align: center;
-            font-weight: 500;
-            color: #7f8c8d;
-        }
-        #download {
-            display: none;
-            margin-top: 20px;
-            text-align: center;
-            padding: 12px;
-            background-color: #27ae60;
-            color: white;
-            text-decoration: none;
-            border-radius: 6px;
-            font-weight: bold;
-        }
-        #download:hover { background-color: #219150; }
-    </style>
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        padding: 40px;
+        background-color: #f4f4f9;
+        color: #333;
+    }
+    .container {
+        max-width: 500px;
+        margin: auto;
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    h2 {
+        text-align: center;
+        color: #2c3e50;
+        margin-bottom: 25px;
+    }
+    input[type="file"] {
+        width: 100%;
+        margin-bottom: 20px;
+    }
+    button {
+        width: 100%;
+        padding: 12px;
+        background-color: #3498db;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 16px;
+    }
+    button:hover { background-color: #2980b9; }
+    button:disabled {
+        background-color: #bdc3c7;
+        cursor: not-allowed;
+    }
+    #status {
+        margin-top: 20px;
+        text-align: center;
+        font-weight: 500;
+        color: #7f8c8d;
+    }
+    #download {
+        display: none;
+        margin-top: 20px;
+        text-align: center;
+        padding: 12px;
+        background-color: #27ae60;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: bold;
+    }
+    #download:hover { background-color: #219150; }
+</style>
 </head>
 
 <body>
@@ -78,9 +78,9 @@
 </div>
 
 <script type="module">
-import { createFFmpeg, fetchFile } from "https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/esm/index.js";
+import { FFmpeg, fetchFile } from "https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js";
 
-const ffmpeg = createFFmpeg({ log: true });
+const ffmpeg = FFmpeg.createFFmpeg({ log: true });
 
 const btn = document.getElementById("btn");
 const status = document.getElementById("status");
@@ -119,7 +119,6 @@ async function compress() {
         );
 
         const data = ffmpeg.FS('readFile', 'output.mp4');
-
         const url = URL.createObjectURL(
             new Blob([data.buffer], { type: 'video/mp4' })
         );
@@ -127,7 +126,6 @@ async function compress() {
         const fileSizeMB = (data.length / (1024 * 1024)).toFixed(2);
 
         status.innerText = "Finished!";
-
         downloadLink.href = url;
         downloadLink.download = 'MPMG_Compressed.mp4';
         downloadLink.innerText = `Download (${fileSizeMB} MB)`;
