@@ -78,78 +78,68 @@
 </div>
 
 <script type="module">
-    import { FFmpeg } from "/ffmpeg/ffmpeg-core.js"; // 👈 not actually used, but keeps path local
-    import { FFmpeg as FFmpegMain } from "https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/esm/index.js";
-    import { fetchFile } from "https://unpkg.com/@ffmpeg/util@0.12.1/dist/esm/index.js";
+import { createFFmpeg, fetchFile } from "https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/esm/index.js";
 
-    const ffmpeg = new FFmpegMain();
+const ffmpeg = createFFmpeg({ log: true });
 
-    const btn = document.getElementById("btn");
-    const status = document.getElementById("status");
-    const downloadLink = document.getElementById("download");
+const btn = document.getElementById("btn");
+const status = document.getElementById("status");
+const downloadLink = document.getElementById("download");
 
-    btn.onclick = compress;
+btn.onclick = compress;
 
-    async function compress() {
-        const file = document.getElementById('upload').files[0];
+async function compress() {
+    const file = document.getElementById('upload').files[0];
 
-        if (!file) {
-            alert("Please select a video file first.");
-            return;
-        }
-
-        btn.disabled = true;
-        downloadLink.style.display = 'none';
-        status.innerText = "Loading FFmpeg...";
-
-        try {
-            // ✅ LOCAL FILES (no CORS issues)
-            await ffmpeg.load({
-                coreURL: "/ffmpeg/ffmpeg-core.js",
-                wasmURL: "/ffmpeg/ffmpeg-core.wasm",
-                workerURL: "/ffmpeg/worker.js"
-            });
-
-            status.innerText = "Processing video...";
-            await ffmpeg.writeFile('input.mp4', await fetchFile(file));
-
-            status.innerText = "Compressing...";
-
-            await ffmpeg.exec([
-                '-i', 'input.mp4',
-                '-vcodec', 'libx264',
-                '-crf', '28',
-                '-preset', 'fast',
-                '-movflags', '+faststart',
-                'output.mp4'
-            ]);
-
-            const data = await ffmpeg.readFile('output.mp4');
-
-            const url = URL.createObjectURL(
-                new Blob([data.buffer], { type: 'video/mp4' })
-            );
-
-            const fileSizeMB = (data.length / (1024 * 1024)).toFixed(2);
-
-            status.innerText = "Finished!";
-
-            downloadLink.href = url;
-            downloadLink.download = 'MPMG_Compressed.mp4';
-            downloadLink.innerText = `Download (${fileSizeMB} MB)`;
-            downloadLink.style.display = 'block';
-
-        } catch (error) {
-            console.error(error);
-            status.innerText = "Error: " + error.message;
-        } finally {
-            btn.disabled = false;
-        }
+    if (!file) {
+        alert("Please select a video file first.");
+        return;
     }
 
-    ffmpeg.on('log', ({ message }) => {
-        console.log(message);
-    });
+    btn.disabled = true;
+    downloadLink.style.display = 'none';
+    status.innerText = "Loading FFmpeg...";
+
+    try {
+        if (!ffmpeg.isLoaded()) {
+            await ffmpeg.load();
+        }
+
+        status.innerText = "Processing video...";
+        await ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
+
+        status.innerText = "Compressing...";
+        await ffmpeg.run(
+            '-i', 'input.mp4',
+            '-vcodec', 'libx264',
+            '-crf', '28',
+            '-preset', 'fast',
+            '-movflags', '+faststart',
+            'output.mp4'
+        );
+
+        const data = ffmpeg.FS('readFile', 'output.mp4');
+
+        const url = URL.createObjectURL(
+            new Blob([data.buffer], { type: 'video/mp4' })
+        );
+
+        const fileSizeMB = (data.length / (1024 * 1024)).toFixed(2);
+
+        status.innerText = "Finished!";
+
+        downloadLink.href = url;
+        downloadLink.download = 'MPMG_Compressed.mp4';
+        downloadLink.innerText = `Download (${fileSizeMB} MB)`;
+        downloadLink.style.display = 'block';
+
+    } catch (error) {
+        console.error(error);
+        status.innerText = "Error: " + error.message;
+    } finally {
+        btn.disabled = false;
+    }
+}
 </script>
 
 </body>
