@@ -1,38 +1,48 @@
 <input type="file" id="upload" />
-<button id="btn">Compress to 25MB</button>
+<button id="id="btn"">Compress to 25MB</button>
 <a id="download" style="display:none">Download</a>
 
 <script type="module">
-import { FFmpeg } from "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/esm/index.js";
-import { fetchFile } from "https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js";
+  // Added the toBlobURL import here
+  import { FFmpeg } from "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/esm/index.js";
+  import { fetchFile, toBlobURL } from "https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js";
 
-const ffmpeg = new FFmpeg();
+  const ffmpeg = new FFmpeg();
 
-document.getElementById("btn").onclick = compress;
+  document.getElementById("btn").onclick = compress;
 
-async function compress() {
-  const file = document.getElementById('upload').files[0];
-  if (!file) return;
+  async function compress() {
+    const file = document.getElementById('upload').files[0];
+    if (!file) {
+      alert("Please select a file first!");
+      return;
+    }
 
-  await ffmpeg.load();
+    const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/esm';
 
-  ffmpeg.writeFile('input.mp4', await fetchFile(file));
+    // This part fixes the SecurityError by fetching the scripts as Blobs
+    await ffmpeg.load({
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+      workerURL: await toBlobURL(`${baseURL}/worker.js`, 'text/javascript'),
+    });
 
-  await ffmpeg.exec([
-    '-i', 'input.mp4',
-    '-b:v', '1M',
-    'output.mp4'
-  ]);
+    await ffmpeg.writeFile('input.mp4', await fetchFile(file));
 
-  const data = await ffmpeg.readFile('output.mp4');
+    // Basic compression command
+    await ffmpeg.exec([
+      '-i', 'input.mp4',
+      '-b:v', '1M',
+      'output.mp4'
+    ]);
 
-  const url = URL.createObjectURL(
-    new Blob([data.buffer], { type: 'video/mp4' })
-  );
+    const data = await ffmpeg.readFile('output.mp4');
+    const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
 
-  const link = document.getElementById('download');
-  link.href = url;
-  link.download = 'compressed.mp4';
-  link.style.display = 'block';
-}
+    const link = document.getElementById('download');
+    link.href = url;
+    link.download = 'compressed.mp4';
+    link.innerText = 'Click here to download';
+    link.style.display = 'block';
+  }
 </script>
