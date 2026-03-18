@@ -29,8 +29,9 @@
 </div>
 
 <script type="module">
-    import { FFmpeg } from "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/esm/index.js";
-    import { fetchFile, toBlobURL } from "https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js";
+    // Changed imports to unpkg to match the blob URLs and prevent conflicts
+    import { FFmpeg } from "https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/esm/index.js";
+    import { fetchFile, toBlobURL } from "https://unpkg.com/@ffmpeg/util@0.12.1/dist/esm/index.js";
 
     const ffmpeg = new FFmpeg();
     const btn = document.getElementById("btn");
@@ -51,15 +52,14 @@
         status.innerText = "Loading FFmpeg...";
 
         try {
-            // FIX: Bypass Vercel folder routing completely by fetching from the official CDN
-            // toBlobURL converts these into secure, local memory files to pass CORS
             const CORE_URL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
             const FFMPEG_URL = 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/esm';
             
             await ffmpeg.load({
                 coreURL: await toBlobURL(`${CORE_URL}/ffmpeg-core.js`, 'text/javascript'),
                 wasmURL: await toBlobURL(`${CORE_URL}/ffmpeg-core.wasm`, 'application/wasm'),
-                workerURL: await toBlobURL(`${FFMPEG_URL}/worker.js`, 'text/javascript'),
+                // THIS IS THE REAL FIX: classWorkerURL instead of workerURL
+                classWorkerURL: await toBlobURL(`${FFMPEG_URL}/worker.js`, 'text/javascript'),
             });
 
             status.innerText = "Processing video...";
@@ -67,12 +67,11 @@
 
             status.innerText = "Compressing... (Stay on this page)";
             
-            // This command aims for high compression to hit the ~25MB mark
             await ffmpeg.exec([
                 '-i', 'input.mp4',
                 '-vcodec', 'libx264',
-                '-crf', '28',        // Lower quality but smaller file
-                '-b:v', '1.5M',      // Target bitrate
+                '-crf', '28',        
+                '-b:v', '1.5M',      
                 '-maxrate', '2M',
                 '-bufsize', '4M',
                 'output.mp4'
@@ -97,7 +96,6 @@
         }
     }
 
-    // Optional: Log progress to console
     ffmpeg.on('log', ({ message }) => {
         console.log(message);
     });
