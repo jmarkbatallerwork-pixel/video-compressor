@@ -29,7 +29,6 @@
 </div>
 
 <script type="module">
-    // Changed imports to unpkg to match the blob URLs and prevent conflicts
     import { FFmpeg } from "https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/esm/index.js";
     import { fetchFile, toBlobURL } from "https://unpkg.com/@ffmpeg/util@0.12.1/dist/esm/index.js";
 
@@ -55,11 +54,16 @@
             const CORE_URL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
             const FFMPEG_URL = 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/esm';
             
+            // We fetch the files and convert them to local blob URLs to bypass CORS
+            const coreBlobURL = await toBlobURL(`${CORE_URL}/ffmpeg-core.js`, 'text/javascript');
+            const wasmBlobURL = await toBlobURL(`${CORE_URL}/ffmpeg-core.wasm`, 'application/wasm');
+            const workerBlobURL = await toBlobURL(`${FFMPEG_URL}/worker.js`, 'text/javascript');
+
             await ffmpeg.load({
-                coreURL: await toBlobURL(`${CORE_URL}/ffmpeg-core.js`, 'text/javascript'),
-                wasmURL: await toBlobURL(`${CORE_URL}/ffmpeg-core.wasm`, 'application/wasm'),
-                // THIS IS THE REAL FIX: classWorkerURL instead of workerURL
-                classWorkerURL: await toBlobURL(`${FFMPEG_URL}/worker.js`, 'text/javascript'),
+                coreURL: coreBlobURL,
+                wasmURL: wasmBlobURL,
+                workerURL: workerBlobURL,
+                classWorkerURL: workerBlobURL // Including both to be completely safe
             });
 
             status.innerText = "Processing video...";
